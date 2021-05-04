@@ -1,0 +1,10 @@
+{
+  "domain": "fitbit",
+  "name": "Custom Fitbit",
+  "documentation": "https://www.home-assistant.io/integrations/fitbit",
+  "requirements": ["fitbit==0.3.1"],
+  "dependencies": ["configurator", "http"],
+  "version": "2021.4.6",
+  "codeowners": ["vlebourl"],
+  "iot_class": "cloud_polling"
+}

@@ -1,0 +1,5 @@
+{
+  	"name": "Custom Fitbit",
+	"render_readme": true,
+	"domain": ["sensor"]
+}
