@@ -269,10 +269,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
         if unit_system == "default":
             authd_client.system = authd_client.user_profile_get()["user"]["locale"]
             if authd_client.system != "en_GB":
-                if hass.config.units.is_metric:
-                    authd_client.system = "metric"
-                else:
-                    authd_client.system = "en_US"
+                authd_client.system = "metric" if hass.config.units.is_metric else "en_US"
         else:
             authd_client.system = unit_system
 
@@ -283,17 +280,18 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
             # monitor battery for all linked FitBit devices
             if resource == "devices/battery":
-                for dev_extra in registered_devs:
-                    dev.append(
-                        FitbitSensor(
-                            authd_client,
-                            config_path,
-                            resource,
-                            hass.config.units.is_metric,
-                            clock_format,
-                            dev_extra,
-                        )
+                dev.extend(
+                    FitbitSensor(
+                        authd_client,
+                        config_path,
+                        resource,
+                        hass.config.units.is_metric,
+                        clock_format,
+                        dev_extra,
                     )
+                    for dev_extra in registered_devs
+                )
+
             else:
                 dev.append(
                     FitbitSensor(
@@ -386,9 +384,6 @@ class FitbitAuthCallbackView(HomeAssistantView):
                 An unknown error occurred. Please try again!
                 """
 
-        html_response = f"""<html><head><title>Fitbit Auth</title></head>
-        <body><h1>{response_message}</h1></body></html>"""
-
         if result:
             config_contents = {
                 ATTR_ACCESS_TOKEN: result.get("access_token"),
@@ -401,7 +396,8 @@ class FitbitAuthCallbackView(HomeAssistantView):
 
         hass.async_add_job(setup_platform, hass, self.config, self.add_entities)
 
-        return html_response
+        return f"""<html><head><title>Fitbit Auth</title></head>
+        <body><h1>{response_message}</h1></body></html>"""
 
 
 class FitbitSensor(SensorEntity):
@@ -460,9 +456,7 @@ class FitbitSensor(SensorEntity):
     @property
     def extra_state_attributes(self):
         """Return the state attributes."""
-        attrs = {}
-
-        attrs[ATTR_ATTRIBUTION] = ATTRIBUTION
+        attrs = {ATTR_ATTRIBUTION: ATTRIBUTION}
 
         if self.extra:
             attrs["model"] = self.extra.get("deviceVersion")
@@ -509,14 +503,13 @@ class FitbitSensor(SensorEntity):
                     self._state = f"{hours}:{minutes:02d} {setting}"
                 else:
                     self._state = raw_state
+            elif self.is_metric:
+                self._state = raw_state
             else:
-                if self.is_metric:
+                try:
+                    self._state = f"{int(raw_state):,}"
+                except TypeError:
                     self._state = raw_state
-                else:
-                    try:
-                        self._state = f"{int(raw_state):,}"
-                    except TypeError:
-                        self._state = raw_state
 
         if self.resource_type == "activities/heart":
             self._state = response[container][-1].get("value").get("restingHeartRate")
